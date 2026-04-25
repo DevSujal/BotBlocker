@@ -3,7 +3,6 @@ package com.assignment.backendengineering.dto.requestDTO;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-
 public record CommentRequestDTO(
         @NotNull(message = "Author ID is required")
         Long authorId,
@@ -12,6 +11,8 @@ public record CommentRequestDTO(
         String authorType,
 
         @NotBlank(message = "Content cannot be empty")
-        String content
+        String content,
+
+        Long parentCommentId
 ) {
 }
