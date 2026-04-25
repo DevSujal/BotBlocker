@@ -4,8 +4,10 @@ import com.assignment.backendengineering.dto.requestDTO.CommentRequestDTO;
 import com.assignment.backendengineering.dto.requestDTO.PostRequestDTO;
 import com.assignment.backendengineering.dto.responseDTO.CommentResponseDTO;
 import com.assignment.backendengineering.dto.responseDTO.PostResponseDTO;
+import com.assignment.backendengineering.entity.Bot;
 import com.assignment.backendengineering.entity.Comment;
 import com.assignment.backendengineering.entity.Post;
+import com.assignment.backendengineering.repository.BotRepository;
 import com.assignment.backendengineering.repository.CommentRepository;
 import com.assignment.backendengineering.repository.PostRepository;
 import com.assignment.backendengineering.utils.AuthorType;
@@ -22,8 +24,10 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
+    private final BotRepository botRepository;
     private final StringRedisTemplate redisTemplate;
     private final BotGuardrailService botGuardrailService;
+    private final NotificationService notificationService;
 
     @Transactional
     public PostResponseDTO createPost(PostRequestDTO request) {
@@ -62,6 +66,12 @@ public class PostService {
 
         commentRepository.save(comment);
         updateViralityScore(postId, authorType);
+
+        if (authorType == AuthorType.BOT) {
+            Bot bot = botRepository.findById(request.authorId()).orElse(null);
+            String botName = (bot != null) ? bot.getName() : "Bot#" + request.authorId();
+            notificationService.handleBotInteraction(post.getAuthorId(), request.authorId(), botName, postId);
+        }
 
         return toCommentResponse(comment);
     }

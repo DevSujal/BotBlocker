@@ -7,16 +7,20 @@ import com.assignment.backendengineering.dto.responseDTO.PostResponseDTO;
 import com.assignment.backendengineering.service.PostService;
 import com.assignment.backendengineering.utils.AuthorType;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/posts")
+@RequiredArgsConstructor
 public class PostController {
 
-    @Autowired
-    private PostService postService;
+    private final PostService postService;
+    private final StringRedisTemplate redisTemplate;
 
     @PostMapping
     public ResponseEntity<PostResponseDTO> createPost(@Valid @RequestBody PostRequestDTO request) {
@@ -24,22 +28,31 @@ public class PostController {
     }
 
     @PostMapping("/{postId}/comments")
-    public ResponseEntity<CommentResponseDTO> addComment(@PathVariable Long postId, @Valid @RequestBody CommentRequestDTO request) {
-
+    public ResponseEntity<CommentResponseDTO> addComment(
+            @PathVariable Long postId,
+            @Valid @RequestBody CommentRequestDTO request) {
         return ResponseEntity.ok(postService.addComment(postId, request));
     }
-    
+
     @PostMapping("/{postId}/like")
     public ResponseEntity<Void> likePost(
             @PathVariable Long postId,
             @RequestParam String authorType) {
-
-        // Convert String to Enum
-        AuthorType type = AuthorType.valueOf(authorType.toUpperCase());
-
-        // Process the like logic (updates Redis Virality Score)
-        postService.likePost(postId, type);
-
+        postService.likePost(postId, AuthorType.valueOf(authorType.toUpperCase()));
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/{postId}/virality")
+    public ResponseEntity<Map<String, String>> getViralityScore(@PathVariable Long postId) {
+        String scoreKey = "post:" + postId + ":virality_score";
+        String countKey = "post:" + postId + ":bot_count";
+        String score = redisTemplate.opsForValue().get(scoreKey);
+        String botCount = redisTemplate.opsForValue().get(countKey);
+        return ResponseEntity.ok(Map.of(
+                "postId", postId.toString(),
+                "viralityScore", score != null ? score : "0",
+                "botReplyCount", botCount != null ? botCount : "0"
+        ));
+    }
 }
+
